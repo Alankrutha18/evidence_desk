@@ -1,0 +1,16 @@
+*__pycache__/
+# Python environment
+.venv/
+
+# Local secrets
+.env
+.env.*
+!.env.example
+
+# Generated Python files
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Local documents
+data/*
