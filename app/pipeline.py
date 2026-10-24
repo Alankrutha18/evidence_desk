@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from app.ingestion import extract_pages
@@ -21,31 +22,11 @@ for page in pages:
 print("Total chunk records:", len(chunk_records))
 
 
+output_path = Path("data/chunks.json")
+
+with output_path.open("w", encoding="utf-8") as file:
+    json.dump(chunk_records, file, ensure_ascii=False, indent=2)
 
 
 
 
-
-# pages = extract_pages(Path("data/sample.pdf"))
-# print("Pages extracted:", len(pages))
-
-# first_page = pages[0]
-# text = first_page["text"]
-# print("Characters:", len(text))
-
-# chunks = split_text(text, chunk_size=500, overlap=100)
-# print("Chunks created:", len(chunks))
-# print("First chunk:", chunks[0])
-
-# chunk_records = []
-# for chunk_number, chunk in enumerate(chunks, start=1):
-#         chunk_records.append({
-#         "document_name": first_page["document_name"],
-#         "page_number": first_page["page_number"],
-#         "chunk_number": chunk_number,
-#         "text": chunk,
-#     })
-
-# print("Chunk records:", len(chunk_records))
-# print("First chunk number:", chunk_records[0]["chunk_number"])
-# print("Source page:", chunk_records[0]["page_number"])
