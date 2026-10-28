@@ -1,104 +1,140 @@
 # EvidenceDesk
 
-A work-in-progress document question-answering application using
-retrieval-augmented generation (RAG).
 
-The goal is to answer questions using relevant PDF passages and provide
-source references. The current version implements document preparation
-and a standalone embedding-similarity experiment.
+EvidenceDesk is a retrieval-augmented generation (RAG) application that
+answers questions about uploaded PDFs using retrieved document passages.
+Built with Python, Streamlit, and OpenAI APIs, it combines semantic search
+with source-referenced answers and inspectable evidence.
 
-## Implemented
+The application extracts page-level text, creates overlapping chunks,
+and stores embeddings with source metadata. For each question, it ranks
+passages using cosine similarity and supplies the top matches to an LLM.
+Users can inspect the retrieved passages, document names, and page numbers
+alongside the generated answer.
 
-- Extract text from PDFs with document names and original page numbers.
-- Split page text into overlapping character-based chunks.
-- Validate chunk-size and overlap settings.
-- Save and load chunk records using JSON.
-- Create an embedding for a sample passage and a sample question.
-- Save and reload embeddings.
-- Calculate cosine similarity locally using saved vectors.
+## Features
 
-## Current workflow
+- PDF upload and local text extraction.
+- Overlapping chunks with document, page, and chunk metadata.
+- Explicit embedding preparation with saved progress and reuse.
+- Cosine-similarity search returning the top three passages.
+- Answers generated from retrieved evidence with source labels.
+- Expandable evidence showing source text and PDF page numbers.
+- Document-specific collections within each browser session.
+- Previous answers cleared when the selected document changes.
 
-PDF → extract page text → split into chunks → attach source metadata
-→ save chunk records to JSON
+## Architecture
 
-A separate experiment creates and saves passage/question embeddings,
-then compares them without further API calls.
+```text
+Document preparation
+PDF → pypdf extraction → overlapping chunks → embeddings → local JSON
 
-## Project structure
+Question answering
+Question → embedding → cosine-similarity ranking → top 3 passages
+         → answer generation → answer and source display
+```
 
-- `app/ingestion.py`: PDF text extraction.
-- `app/chunking.py`: overlapping text chunks and input validation.
-- `app/pipeline.py`: document preparation and JSON output.
-- `app/load_chunks.py`: loads saved chunk records.
-- `app/check_config.py`: checks whether an API key is available without displaying it.
-- `app/embeddings.py`: creates and saves a sample passage embedding.
-- `app/load_embedding.py`: loads the saved passage embedding.
-- `app/compare_embeddings.py`: compares saved passage and question embeddings.
-- `data/`: local documents and generated files; excluded from Git.
+Embeddings use `text-embedding-3-small`.
+Answer generation uses `gpt-5-mini`.
 
 ## Setup
 
-Requires Python. Development currently uses Python 3.14.
+Development has been tested on Windows with Python 3.14.
 
-Create a virtual environment:
+Clone the repository:
+
+```powershell
+git clone https://github.com/Alankrutha18/evidence_desk.git
+cd evidence_desk
+```
+
+Create an environment and install dependencies:
 
 ```powershell
 py -m venv .venv
-```
-
-Install dependencies:
-
-```powershell
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-For API requests, create a local `.env` file:
-
-```dotenv
-OPENAI_API_KEY=your_key_here
-```
-
-Never commit the real key. API usage is billed separately.
-
-## Run document preparation
-
-Place a text-based PDF at `data/sample.pdf`, then run from the project root:
+Copy `.env.example` to `.env` and supply your own OpenAI API key:
 
 ```powershell
-.\.venv\Scripts\python.exe -m app.pipeline
+Copy-Item .env.example .env
 ```
 
-The pipeline writes `data/chunks.json`.
+The key needs permission to create embeddings and Responses.
+API billing is separate from ChatGPT subscriptions.
 
-## Embedding experiment
+## Run
 
-The sample passage embedding is created with:
+From the repository root:
 
 ```powershell
-.\.venv\Scripts\python.exe -m app.embeddings
+.\.venv\Scripts\python.exe -m streamlit run streamlit_app.py
 ```
 
-This makes a paid API request and writes `data/example_embedding.json`.
+1. Upload a text-based PDF.
+2. Click **Read PDF and preview chunks**.
+3. Inspect the preview.
+4. Click **Create embeddings**.
+5. Submit a question and inspect its retrieved evidence.
 
-The comparison script requires that file and
-`data/question_embedding.json`. The question embedding was generated
-during development; its generation workflow still needs to be made reusable.
+Current upload limits are 5 MB and 60 chunks.
 
-Once both files exist:
+## Costs and document handling
+
+PDF extraction and similarity calculations run locally.
+Embedding creation and answer generation use paid OpenAI API requests.
+
+Extracted passage text is sent to OpenAI when embeddings are created.
+Questions and retrieved passages are sent when answers are generated.
+
+Local documents, embeddings, and `.env` are excluded from Git.
+Uploaded files remain on disk until removed manually.
+Browser-session folders are separate; starting a new session may require
+embedding the same document again.
+
+## Tests
 
 ```powershell
-.\.venv\Scripts\python.exe -m app.compare_embeddings
+.\.venv\Scripts\python.exe -m pytest -v
 ```
 
-The comparison runs locally without API calls.
+The current suite contains 17 checks covering:
 
-## Limitations and next steps
+- Chunk boundaries, overlap, short inputs, and invalid settings.
+- Known cosine-similarity results and invalid vectors.
+- Retrieval ranking, source-context assembly, and API orchestration.
+- Rejection of blank questions and empty collections.
 
-- PDF extraction has been demonstrated on a one-page sample.
+Search tests mock external calls and require no API credit.
+
+## Project organization
+
+- `streamlit_app.py`: upload, preparation, question form, and evidence display.
+- `app/ingestion.py`: PDF text extraction.
+- `app/chunking.py`: character-based chunking.
+- `app/pipeline.py`: reusable document preparation.
+- `app/embeddings.py`: embedding API helper.
+- `app/document_service.py`: resumable embedding preparation.
+- `app/similarity.py`: cosine similarity.
+- `app/search.py`: retrieval and question-answering orchestration.
+- `app/answering.py`: evidence-based answer-generation request.
+- `tests/`: automated checks.
+
+Other small scripts preserve development experiments and terminal workflows.
+
+## Limitations
+
+- Scanned PDFs require OCR, which is not implemented.
 - Character-based chunks can split words and sentences.
-- PDF chunk embeddings are not yet connected to retrieval.
-- Automated tests have not yet been added.
-- Answer generation, citation validation, API endpoints, and a user interface
-  are planned.
-- Similarity scores are not probabilities of answer correctness.
+- Search compares every stored vector; no ANN index is implemented.
+- Questions are independent; conversation history is not supplied.
+- Source labels are generated references, not automatically verified proof.
+- The model may miss evidence or produce unsupported statements.
+- Automated tests do not establish real-world answer accuracy.
+- Retrieval and answer quality have only been manually spot-checked.
+- Authentication, global spending controls, and automatic file cleanup
+  are not implemented.
+
+This is a local portfolio prototype. Public deployment requires additional
+access, spending, and document-lifecycle controls.
